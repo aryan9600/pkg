@@ -41,7 +41,7 @@ COSIGN = $(GOBIN)/cosign
 $(LIBGIT2):
 	$(call go-install-tool,$(COSIGN),github.com/sigstore/cosign/cmd/cosign@latest)
 
-	cd git/libgit2 && IMG=$(LIBGIT2_IMG) TAG=$(LIBGIT2_TAG) PATH=$(PATH):$(GOBIN) ./hack/install-libraries.sh
+	cd libgit2 && IMG=$(LIBGIT2_IMG) TAG=$(LIBGIT2_TAG) PATH=$(PATH):$(GOBIN) ./hack/install-libraries.sh
 
 define go-install-tool
 @[ -f $(1) ] || { \
