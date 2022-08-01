@@ -31,6 +31,7 @@ import (
 
 	"github.com/fluxcd/pkg/git"
 	"github.com/fluxcd/pkg/git/gogit"
+	"github.com/fluxcd/pkg/git/libgit2"
 )
 
 const (
@@ -125,14 +126,14 @@ func TestGitLabE2E(t *testing.T) {
 		return repoURL, authOptions, nil
 	}
 
-	protocols := []git.TransportType{git.SSH, git.HTTP}
-	clients := []string{gogit.ClientName}
+	protocols := []git.TransportType{git.HTTP, git.SSH}
+	clients := []string{gogit.ClientName, libgit2.ClientName}
 
-	testFunc := func(t *testing.T, proto git.TransportType, c string) {
-		t.Run(fmt.Sprintf("repo created using Clone/%s", proto), func(t *testing.T) {
+	testFunc := func(t *testing.T, proto git.TransportType, gitClient string) {
+		t.Run(fmt.Sprintf("repo created using Clone/%s/%s", gitClient, proto), func(t *testing.T) {
 			g := NewWithT(t)
 
-			repoName := fmt.Sprintf("gitlab-e2e-checkout-%s-%s", string(proto), randStringRunes(5))
+			repoName := fmt.Sprintf("gitlab-e2e-checkout-%s-%s-%s", string(proto), string(gitClient), randStringRunes(5))
 			repoURL, authOptions, err := repoInfo(repoName, proto)
 			g.Expect(err).ToNot(HaveOccurred())
 
@@ -143,9 +144,12 @@ func TestGitLabE2E(t *testing.T) {
 			var client git.RepositoryClient
 			tmp := t.TempDir()
 
-			if c == gogit.ClientName {
+			if gitClient == gogit.ClientName {
 				client, err = gogit.NewClient(tmp, authOptions)
 				g.Expect(err).ToNot(HaveOccurred())
+			}
+			if gitClient == libgit2.ClientName {
+				client = libgit2.NewClient(tmp, authOptions)
 			}
 
 			testUsingClone(g, client, repoURL, upstreamRepoInfo{
@@ -155,10 +159,10 @@ func TestGitLabE2E(t *testing.T) {
 			})
 		})
 
-		t.Run(fmt.Sprintf("repo created using Init/%s", proto), func(t *testing.T) {
+		t.Run(fmt.Sprintf("repo created using Init/%s/%s", gitClient, proto), func(t *testing.T) {
 			g := NewWithT(t)
 
-			repoName := fmt.Sprintf("gitlab-e2e-checkout-%s-%s", string(proto), randStringRunes(5))
+			repoName := fmt.Sprintf("gitlab-e2e-checkout-%s-%s-%s", string(proto), string(gitClient), randStringRunes(5))
 			repoURL, authOptions, err := repoInfo(repoName, proto)
 			g.Expect(err).ToNot(HaveOccurred())
 			upstreamRepoURL := gitlabHTTPHost + "/" + gitlabUsername + "/" + repoName
@@ -166,9 +170,12 @@ func TestGitLabE2E(t *testing.T) {
 			var client git.RepositoryClient
 			tmp := t.TempDir()
 
-			if c == gogit.ClientName {
+			if gitClient == gogit.ClientName {
 				client, err = gogit.NewClient(tmp, authOptions)
 				g.Expect(err).ToNot(HaveOccurred())
+			}
+			if gitClient == libgit2.ClientName {
+				client = libgit2.NewClient(tmp, authOptions)
 			}
 
 			testUsingInit(g, client, repoURL, upstreamRepoInfo{
