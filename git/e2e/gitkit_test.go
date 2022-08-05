@@ -117,7 +117,8 @@ func TestGitKitE2E(t *testing.T) {
 				g.Expect(err).ToNot(HaveOccurred())
 			}
 			if gitClient == libgit2.ClientName {
-				client = libgit2.NewClient(tmp, authOptions)
+				client, err = libgit2.NewClient(tmp, authOptions)
+				g.Expect(err).ToNot(HaveOccurred())
 			}
 
 			// init repo on server
@@ -145,7 +146,8 @@ func TestGitKitE2E(t *testing.T) {
 				g.Expect(err).ToNot(HaveOccurred())
 			}
 			if gitClient == libgit2.ClientName {
-				client = libgit2.NewClient(tmp, authOptions)
+				client, err = libgit2.NewClient(tmp, authOptions)
+				g.Expect(err).ToNot(HaveOccurred())
 			}
 
 			testUsingInit(g, client, repoURL, upstreamRepoInfo{
