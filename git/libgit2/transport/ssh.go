@@ -262,7 +262,11 @@ func (t *sshSmartSubtransport) Action(transportOptionsURL string, action git2go.
 		for {
 			select {
 			case <-ctx.Done():
-				t.Close()
+				t.logger.V(logger.TraceLevel).Error(ctx.Err(), "context channel Done closed")
+				if atomic.LoadInt32(t.closedSessions) < closedAlready {
+					t.logger.V(logger.TraceLevel).Info("closing transport", "address", addr)
+					t.Close()
+				}
 				return nil
 
 			default:
