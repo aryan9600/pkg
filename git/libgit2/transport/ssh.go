@@ -262,7 +262,12 @@ func (t *sshSmartSubtransport) Action(transportOptionsURL string, action git2go.
 		for {
 			select {
 			case <-ctx.Done():
-				t.Close()
+				if atomic.LoadInt32(t.closedSessions) < closedAlready {
+					t.Close()
+				}
+				if ctx.Err() == context.DeadlineExceeded {
+					t.Close()
+				}
 				return nil
 
 			default:
