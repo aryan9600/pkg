@@ -65,8 +65,13 @@ var _ git.RepositoryClient = &Client{}
 type ClientOption func(*Client) error
 
 func NewClient(path string, authOpts *git.AuthOptions, clientOpts ...ClientOption) (*Client, error) {
+	cleaned, err := git.CleanPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("invalid path %s: %w", path, err)
+	}
+
 	l := &Client{
-		path:     path,
+		path:     cleaned,
 		authOpts: authOpts,
 	}
 
