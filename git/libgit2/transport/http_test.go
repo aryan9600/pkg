@@ -18,17 +18,16 @@ package transport
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	git2go "github.com/libgit2/git2go/v33"
 	. "github.com/onsi/gomega"
 
 	"github.com/fluxcd/pkg/git"
-	"github.com/fluxcd/pkg/git/libgit2/internal/test"
 	"github.com/fluxcd/pkg/gittestserver"
 )
 
@@ -182,10 +181,10 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 	// Register the auth options and target url mapped to a unique url.
 	id := "http://obj-id"
 	AddTransportOptions(id, TransportOptions{
-		TargetURL: server.HTTPAddress() + "/" + repoPath,
+		TargetURL: "https://github.com/aryan9600/cherry",
 		AuthOpts: &git.AuthOptions{
-			Username: user,
-			Password: pwd,
+			Username: "aryan9600",
+			Password: "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",
 		},
 	})
 
@@ -194,16 +193,67 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 	// credentials using the it as an identifier.
 	repo, err := git2go.Clone(id, tmpDir, &git2go.CloneOptions{
 		CheckoutOptions: git2go.CheckoutOptions{
-			Strategy: git2go.CheckoutForce,
+			Strategy: git2go.CheckoutForce | git2go.CheckoutStrategy(git2go.SubmoduleRecurseYes),
 		},
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 	defer repo.Free()
+	head, _ := repo.Head()
+	fmt.Println(head.Target().String())
 
-	_, err = test.CommitFile(repo, "test-file", "testing push", time.Now())
-	g.Expect(err).ToNot(HaveOccurred())
-	err = push(tmpDir, git.DefaultBranch)
-	g.Expect(err).ToNot(HaveOccurred())
+	var subRepo *git2go.Repository
+	var subModuleUpdate git2go.SubmoduleCallback
+
+	submoduleSetup := func(r *git2go.Repository) {
+		submodules := make(map[string]string, 0)
+		r.Submodules.Foreach(func(sub *git2go.Submodule, name string) error {
+			submodules[sub.Name()] = sub.Url()
+			return nil
+		})
+
+		for name, url := range submodules {
+			fakeURL := "http://fake-url" + name
+			err = r.Submodules.SetUrl(name, fakeURL)
+			g.Expect(err).ToNot(HaveOccurred())
+			AddTransportOptions(fakeURL, TransportOptions{
+				TargetURL: url,
+				AuthOpts: &git.AuthOptions{
+					Username: "aryan9600",
+					Password: "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",
+				},
+			})
+		}
+
+	}
+	submoduleSetup(repo)
+
+	subModuleUpdate = func(sub *git2go.Submodule, name string) error {
+		url := sub.Url()
+		defer sub.Free()
+		fmt.Println(url)
+		err = sub.Update(true, &git2go.SubmoduleUpdateOptions{
+			CheckoutOptions: git2go.CheckoutOptions{
+				Strategy: git2go.CheckoutForce | git2go.CheckoutStrategy(git2go.SubmoduleRecurseYes),
+			},
+		})
+		fmt.Println(err)
+		subRepo, err = sub.Open()
+		defer subRepo.Free()
+		submoduleSetup(subRepo)
+		subRepo.Submodules.Foreach(subModuleUpdate)
+
+		return nil
+	}
+	repo.Submodules.Foreach(subModuleUpdate)
+	filepath.WalkDir(tmpDir, func(path string, d fs.DirEntry, err error) error {
+		fmt.Println(path)
+		return nil
+	})
+
+	// _, err = test.CommitFile(repo, "test-file", "testing push", time.Now())
+	// g.Expect(err).ToNot(HaveOccurred())
+	// err = push(tmpDir, git.DefaultBranch)
+	// g.Expect(err).ToNot(HaveOccurred())
 }
 
 func TestTrimActionSuffix(t *testing.T) {

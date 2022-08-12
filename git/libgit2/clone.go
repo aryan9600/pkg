@@ -27,6 +27,7 @@ import (
 	git2go "github.com/libgit2/git2go/v33"
 
 	"github.com/fluxcd/pkg/git"
+	"github.com/fluxcd/pkg/git/libgit2/transport"
 	"github.com/fluxcd/pkg/gitutil"
 	"github.com/fluxcd/pkg/version"
 )
@@ -340,6 +341,53 @@ func (l *Client) cloneSemVer(ctx context.Context, url, semverTag string, opts gi
 	}
 	defer cc.Free()
 	return buildCommit(cc, "refs/tags/"+t), nil
+}
+
+func updateSubmodules(repo *git2go.Repository) error {
+	var subRepo *git2go.Repository
+	var subModuleUpdate git2go.SubmoduleCallback
+
+	submoduleSetup := func(r *git2go.Repository) {
+		submodules := make(map[string]string, 0)
+		r.Submodules.Foreach(func(sub *git2go.Submodule, name string) error {
+			submodules[sub.Name()] = sub.Url()
+			return nil
+		})
+
+		for name, url := range submodules {
+			fakeURL := "http://fake-url" + name
+			err := r.Submodules.SetUrl(name, fakeURL)
+			fmt.Println(err)
+			transport.AddTransportOptions(fakeURL, transport.TransportOptions{
+				TargetURL: url,
+				AuthOpts: &git.AuthOptions{
+					Username: "aryan9600",
+					Password: "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",
+				},
+			})
+		}
+
+	}
+	submoduleSetup(repo)
+
+	subModuleUpdate = func(sub *git2go.Submodule, name string) error {
+		url := sub.Url()
+		defer sub.Free()
+		fmt.Println(url)
+		err := sub.Update(true, &git2go.SubmoduleUpdateOptions{
+			CheckoutOptions: git2go.CheckoutOptions{
+				Strategy: git2go.CheckoutForce | git2go.CheckoutStrategy(git2go.SubmoduleRecurseYes),
+			},
+		})
+		fmt.Println(err)
+		subRepo, err = sub.Open()
+		defer subRepo.Free()
+		submoduleSetup(subRepo)
+		subRepo.Submodules.Foreach(subModuleUpdate)
+
+		return nil
+	}
+	repo.Submodules.Foreach(subModuleUpdate)
 }
 
 // checkoutDetachedDwim attempts to perform a detached HEAD checkout by first DWIMing the short name
