@@ -139,7 +139,15 @@ func (l *Client) cloneBranch(ctx context.Context, url, branch string, opts git.C
 	}
 	defer cc.Free()
 
-	return buildCommit(cc, "refs/heads/"+branch), nil
+	gitCommit := buildCommit(cc, "refs/heads/"+branch)
+
+	if opts.RecurseSubmodules {
+		err = l.updateSubmodules()
+		if err != nil {
+			return nil, fmt.Errorf("unable to update submodules recursively for branch '%s': %w", branch, err)
+		}
+	}
+	return gitCommit, nil
 }
 
 func (l *Client) cloneTag(ctx context.Context, url, tag string, opts git.CheckoutOptions) (_ *git.Commit, err error) {
@@ -204,6 +212,14 @@ func (l *Client) cloneTag(ctx context.Context, url, tag string, opts git.Checkou
 		return nil, err
 	}
 	defer cc.Free()
+
+	if opts.RecurseSubmodules {
+		err = l.updateSubmodules()
+		if err != nil {
+			return nil, fmt.Errorf("unable to update submodules recursively for tag '%s':%w", tag, err)
+		}
+	}
+
 	return buildCommit(cc, "refs/tags/"+tag), nil
 }
 
@@ -237,6 +253,14 @@ func (l *Client) cloneCommit(ctx context.Context, url, commit string, opts git.C
 	if err != nil {
 		return nil, fmt.Errorf("git checkout error: %w", err)
 	}
+
+	if opts.RecurseSubmodules {
+		err = l.updateSubmodules()
+		if err != nil {
+			return nil, fmt.Errorf("unable to update submodules recursively for commit '%s':%w", commit, err)
+		}
+	}
+
 	return buildCommit(cc, ""), nil
 }
 
@@ -340,54 +364,119 @@ func (l *Client) cloneSemVer(ctx context.Context, url, semverTag string, opts gi
 		return nil, err
 	}
 	defer cc.Free()
+
+	if opts.RecurseSubmodules {
+		err = l.updateSubmodules()
+		if err != nil {
+			return nil, fmt.Errorf("unable to update submodules recursively for tag '%s':%w", t, err)
+		}
+	}
+
 	return buildCommit(cc, "refs/tags/"+t), nil
 }
 
-func updateSubmodules(repo *git2go.Repository) error {
-	var subRepo *git2go.Repository
+func (l *Client) updateSubmodules() error {
+	_, err := setupSubmodule(l.repository, l.authOpts, l.submodules)
+	if err != nil {
+		return err
+	}
+
 	var subModuleUpdate git2go.SubmoduleCallback
-
-	submoduleSetup := func(r *git2go.Repository) {
-		submodules := make(map[string]string, 0)
-		r.Submodules.Foreach(func(sub *git2go.Submodule, name string) error {
-			submodules[sub.Name()] = sub.Url()
+	var depth int
+	subModuleUpdate = func(sub *git2go.Submodule, name string) error {
+		l.submodules = append(l.submodules, sub)
+		if depth >= git.DefaultSubmoduleReursionDepth {
 			return nil
-		})
-
-		for name, url := range submodules {
-			fakeURL := "http://fake-url" + name
-			err := r.Submodules.SetUrl(name, fakeURL)
-			fmt.Println(err)
-			transport.AddTransportOptions(fakeURL, transport.TransportOptions{
-				TargetURL: url,
-				AuthOpts: &git.AuthOptions{
-					Username: "aryan9600",
-					Password: "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",
-				},
-			})
 		}
 
-	}
-	submoduleSetup(repo)
-
-	subModuleUpdate = func(sub *git2go.Submodule, name string) error {
-		url := sub.Url()
-		defer sub.Free()
-		fmt.Println(url)
 		err := sub.Update(true, &git2go.SubmoduleUpdateOptions{
 			CheckoutOptions: git2go.CheckoutOptions{
 				Strategy: git2go.CheckoutForce | git2go.CheckoutStrategy(git2go.SubmoduleRecurseYes),
 			},
 		})
 		fmt.Println(err)
-		subRepo, err = sub.Open()
-		defer subRepo.Free()
-		submoduleSetup(subRepo)
-		subRepo.Submodules.Foreach(subModuleUpdate)
+		if err != nil {
+			return err
+		}
 
+		subRepo, err := sub.Open()
+		if err != nil {
+			return err
+		}
+
+		_, err = setupSubmodule(subRepo, l.authOpts, l.submodules)
+		if err != nil {
+			return err
+		}
+		err = subRepo.Submodules.Foreach(subModuleUpdate)
+		if err != nil {
+			return err
+		}
+		subRepo.Free()
+
+		depth += 1
 		return nil
 	}
-	repo.Submodules.Foreach(subModuleUpdate)
+
+	err = l.repository.Submodules.Foreach(subModuleUpdate)
+	if err != nil {
+		return err
+	}
+
+	// err = cleanupSubmodule(l.repository, submoduleInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupSubmodule(r *git2go.Repository, authOpts *git.AuthOptions, tracked []*git2go.Submodule) (map[string]string, error) {
+	submodules := make(map[string]string, 0)
+	err := r.Submodules.Foreach(func(sub *git2go.Submodule, name string) error {
+		tracked = append(tracked, sub)
+		submodules[sub.Name()] = sub.Url()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for name, url := range submodules {
+		fakeURL := getTransportOptsURL(authOpts.Transport)
+		err := r.Submodules.SetUrl(name, fakeURL)
+		if err != nil {
+			return nil, err
+		}
+		transport.AddTransportOptions(fakeURL, transport.TransportOptions{
+			TargetURL: url,
+			AuthOpts: &git.AuthOptions{
+				Username: authOpts.Username,
+				Password: authOpts.Password,
+			},
+		})
+	}
+	return submodules, nil
+}
+
+func cleanupSubmodule(r *git2go.Repository, original map[string]string) error {
+	submodules := make(map[string]string, 0)
+	err := r.Submodules.Foreach(func(sub *git2go.Submodule, name string) error {
+		submodules[sub.Name()] = sub.Url()
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for name, transportOptsURL := range submodules {
+		if url, ok := original[name]; ok {
+			r.Submodules.SetUrl(name, url)
+		}
+		transport.RemoveTransportOptions(transportOptsURL)
+	}
+
+	return nil
 }
 
 // checkoutDetachedDwim attempts to perform a detached HEAD checkout by first DWIMing the short name

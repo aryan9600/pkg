@@ -19,6 +19,7 @@ package test
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,8 @@ import (
 	"time"
 
 	git2go "github.com/libgit2/git2go/v33"
+
+	"github.com/fluxcd/pkg/git"
 )
 
 func CommitFile(repo *git2go.Repository, path, content string, time time.Time) (*git2go.Oid, error) {
@@ -152,4 +155,13 @@ func Push(path, branch string, cb git2go.RemoteCallbacks) error {
 		return err
 	}
 	return nil
+}
+
+func getTransportOptsURL(transport git.TransportType) string {
+	letterRunes := []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+	b := make([]rune, 12)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(transport) + "://" + string(b)
 }

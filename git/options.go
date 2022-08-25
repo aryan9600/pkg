@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	DefaultRemote            = "origin"
-	DefaultBranch            = "master"
-	DefaultPublicKeyAuthUser = "git"
+	DefaultRemote                 = "origin"
+	DefaultBranch                 = "master"
+	DefaultPublicKeyAuthUser      = "git"
+	DefaultSubmoduleReursionDepth = 10
 )
 
 // CheckoutOptions are the options used for a Git checkout.

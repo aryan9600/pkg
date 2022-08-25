@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	git2go "github.com/libgit2/git2go/v33"
@@ -183,8 +184,8 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 	AddTransportOptions(id, TransportOptions{
 		TargetURL: "https://github.com/aryan9600/cherry",
 		AuthOpts: &git.AuthOptions{
-			Username: "aryan9600",
-			Password: "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",
+			Transport: git.HTTP,
+			Username:  "aryan9600",
 		},
 	})
 
@@ -197,11 +198,10 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 		},
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	defer repo.Free()
+	// defer repo.Free()
 	head, _ := repo.Head()
 	fmt.Println(head.Target().String())
 
-	var subRepo *git2go.Repository
 	var subModuleUpdate git2go.SubmoduleCallback
 
 	submoduleSetup := func(r *git2go.Repository) {
@@ -218,8 +218,8 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 			AddTransportOptions(fakeURL, TransportOptions{
 				TargetURL: url,
 				AuthOpts: &git.AuthOptions{
-					Username: "aryan9600",
-					Password: "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",
+					Transport: git.HTTP,
+					Username:  "aryan9600",
 				},
 			})
 		}
@@ -229,24 +229,33 @@ func TestHTTPManagedTransport_E2E(t *testing.T) {
 
 	subModuleUpdate = func(sub *git2go.Submodule, name string) error {
 		url := sub.Url()
-		defer sub.Free()
+		if sub != nil {
+			defer sub.Free()
+		}
 		fmt.Println(url)
 		err = sub.Update(true, &git2go.SubmoduleUpdateOptions{
 			CheckoutOptions: git2go.CheckoutOptions{
 				Strategy: git2go.CheckoutForce | git2go.CheckoutStrategy(git2go.SubmoduleRecurseYes),
 			},
 		})
-		fmt.Println(err)
-		subRepo, err = sub.Open()
-		defer subRepo.Free()
+		if err != nil {
+			return err
+		}
+		subRepo, err := sub.Open()
+		if err != nil {
+			return err
+		}
 		submoduleSetup(subRepo)
 		subRepo.Submodules.Foreach(subModuleUpdate)
+		subRepo.Free()
 
 		return nil
 	}
 	repo.Submodules.Foreach(subModuleUpdate)
 	filepath.WalkDir(tmpDir, func(path string, d fs.DirEntry, err error) error {
-		fmt.Println(path)
+		if !strings.Contains(path, ".git") {
+			fmt.Println(path)
+		}
 		return nil
 	})
 

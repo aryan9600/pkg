@@ -37,6 +37,10 @@ test: $(LIBGIT2)
 
 libgit2: $(LIBGIT2)  ## Detect or download libgit2 library
 
+env:
+	echo $(PKG_CONFIG_PATH)
+	echo $(CGO_LDFLAGS)
+
 COSIGN = $(GOBIN)/cosign
 $(LIBGIT2):
 	$(call go-install-tool,$(COSIGN),github.com/sigstore/cosign/cmd/cosign@latest)

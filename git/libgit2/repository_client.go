@@ -48,6 +48,7 @@ type Client struct {
 	remote     *git2go.Remote
 	authOpts   *git.AuthOptions
 	repoFS     billy.Filesystem
+	submodules []*git2go.Submodule
 	// transportOptsURL is the backbone of how we use our own smart transports
 	// without having to rely on libgit2 callbacks (since they are inflexible
 	// and unstable).
@@ -515,6 +516,10 @@ func (l *Client) Close() {
 	}
 	if l.repository != nil {
 		l.repository.Free()
+	}
+
+	for _, sub := range l.submodules {
+		sub.Free()
 	}
 
 	transport.RemoveTransportOptions(l.transportOptsURL)
