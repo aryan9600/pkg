@@ -22,7 +22,7 @@ replace github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0
 //
 // The fork automatically releases new patches based on upstream:
 // https://github.com/pjbgf/git2go/commit/d72e39cdc20f7fe014ba73072b01ba7b569e9253
-replace github.com/libgit2/git2go/v33 => github.com/pjbgf/git2go/v33 v33.0.9-nothread-check
+replace github.com/libgit2/git2go/v33 => github.com/aryan9600/git2go/v33 v33.1.0-libgit2-v1.5.0
 
 // This lets us use `go-billy/util.Walk()`, as this function hasn't been released
 // in a tagged version yet:
