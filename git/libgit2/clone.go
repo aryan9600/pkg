@@ -68,76 +68,31 @@ func (l *Client) cloneBranch(ctx context.Context, url, branch string, opts git.C
 		}
 	}
 
-	// Limit the fetch operation to the specific branch, to decrease network usage.
-	err = l.remote.Fetch([]string{branch},
-		&git2go.FetchOptions{
+	repo, err := git2go.Clone(l.transportOptsURL, l.path, &git2go.CloneOptions{
+		FetchOptions: git2go.FetchOptions{
 			DownloadTags:    git2go.DownloadTagsNone,
 			RemoteCallbacks: remoteCallBacks,
 		},
-		"")
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch remote '%s': %w", url, gitutil.LibGit2Error(err))
-	}
-
-	branchRef, err := l.repository.References.Lookup(fmt.Sprintf("refs/remotes/origin/%s", branch))
-	if err != nil {
-		return nil, fmt.Errorf("unable to lookup branch '%s' for '%s': %w", branch, url, gitutil.LibGit2Error(err))
-	}
-	defer branchRef.Free()
-
-	upstreamCommit, err := l.repository.LookupCommit(branchRef.Target())
-	if err != nil {
-		return nil, fmt.Errorf("unable to lookup commit '%s' for '%s': %w", branch, url, gitutil.LibGit2Error(err))
-	}
-	defer upstreamCommit.Free()
-
-	// We try to lookup the branch (and create it if it doesn't exist), so that we can
-	// switch the repo to the specified branch. This is done so that users of this api
-	// can expect the repo to be at the desired branch, when cloned.
-	localBranch, err := l.repository.LookupBranch(branch, git2go.BranchLocal)
-	if git2go.IsErrorCode(err, git2go.ErrorCodeNotFound) {
-		localBranch, err = l.repository.CreateBranch(branch, upstreamCommit, false)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create local branch '%s': %w", branch, err)
-		}
-	} else if err != nil {
-		return nil, fmt.Errorf("unable to lookup branch '%s': %w", branch, err)
-	}
-	defer localBranch.Free()
-
-	tree, err := l.repository.LookupTree(upstreamCommit.TreeId())
-	if err != nil {
-		return nil, fmt.Errorf("unable to lookup tree for branch '%s': %w", branch, err)
-	}
-	defer tree.Free()
-
-	err = l.repository.CheckoutTree(tree, &git2go.CheckoutOpts{
-		// the remote branch should take precedence if it exists at this point in time.
-		Strategy: git2go.CheckoutForce,
+		CheckoutOptions: git2go.CheckoutOptions{
+			Strategy: git2go.CheckoutForce,
+		},
+		CheckoutBranch: branch,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to checkout tree for branch '%s': %w", branch, err)
+		return nil, fmt.Errorf("unable to clone '%s': %w", url, gitutil.LibGit2Error(err))
 	}
+	defer repo.Free()
 
-	// Set the current head to point to the requested branch.
-	err = l.repository.SetHead("refs/heads/" + branch)
+	head, err := repo.Head()
 	if err != nil {
-		return nil, fmt.Errorf("unable to set HEAD to branch '%s':%w", branch, err)
-	}
-
-	// Use the current worktree's head as reference for the commit to be returned.
-	head, err := l.repository.Head()
-	if err != nil {
-		return nil, fmt.Errorf("unable to resolve HEAD: %w", err)
+		return nil, fmt.Errorf("git resolve HEAD error: %w", err)
 	}
 	defer head.Free()
-
-	cc, err := l.repository.LookupCommit(head.Target())
+	cc, err := repo.LookupCommit(head.Target())
 	if err != nil {
-		return nil, fmt.Errorf("unable to lookup HEAD commit '%s' for branch '%s': %w", head.Target(), branch, err)
+		return nil, fmt.Errorf("failed to lookup HEAD commit '%s' for branch '%s': %w", head.Target(), branch, err)
 	}
 	defer cc.Free()
-
 	return buildCommit(cc, "refs/heads/"+branch), nil
 }
 

@@ -106,7 +106,8 @@ func (l *Client) Init(ctx context.Context, url, branch string) error {
 	if l.repository != nil {
 		return nil
 	}
-	repo, err := git2go.InitRepository(l.path, false)
+
+	repo, err := git2go.InitRepository(l.path+"-init", false)
 	if err != nil {
 		return fmt.Errorf("unable to init repository for '%s': %w", url, gitutil.LibGit2Error(err))
 	}
