@@ -2,6 +2,8 @@ module github.com/fluxcd/pkg/git/gogit
 
 go 1.18
 
+replace github.com/go-git/go-git => github.com/aryan9600/go-git v0.0.0-20221013143613-714664dbfaab
+
 replace (
 	github.com/fluxcd/pkg/git => ../../git
 	github.com/fluxcd/pkg/gittestserver => ../../gittestserver
