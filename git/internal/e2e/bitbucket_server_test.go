@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	projectKey  = "FLUX"
+	projectKey  = "GOG"
 	sshPort     = "7999"
 	stashToken  = "STASH_TOKEN"
 	stashUser   = "STASH_USER"
