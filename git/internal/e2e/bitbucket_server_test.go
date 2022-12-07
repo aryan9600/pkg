@@ -65,9 +65,9 @@ func TestBitbucketServerE2E(t *testing.T) {
 	if bitbucketServerHost == "" {
 		t.Fatalf("could not read bitbucket domain")
 	}
-	bitbucketServerHTTPHost := "https://" + bitbucketServerHost + "/scm"
 
-	bitbucketURL, err := url.Parse(bitbucketServerHost)
+	bitbucketServerHTTPHost := "https://" + bitbucketServerHost
+	bitbucketURL, err := url.Parse(bitbucketServerHTTPHost)
 	g.Expect(err).ToNot(HaveOccurred())
 	bitbucketServerSSHHost := "ssh://" + git.DefaultPublicKeyAuthUser + "@" + bitbucketURL.Hostname() + ":" + sshPort
 
