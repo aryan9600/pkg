@@ -106,7 +106,7 @@ func TestBitbucketServerE2E(t *testing.T) {
 				return nil, nil, err
 			}
 		} else {
-			repoURL, err = url.Parse(bitbucketServerHTTPHost + "/" + strings.ToLower(projectKey) + "/" + repo.Name)
+			repoURL, err = url.Parse(bitbucketServerHTTPHost + "/" + "scm" + "/" + strings.ToLower(projectKey) + "/" + repo.Name)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -129,7 +129,7 @@ func TestBitbucketServerE2E(t *testing.T) {
 			g := NewWithT(t)
 
 			repoName := fmt.Sprintf("github-e2e-checkout-%s-%s-%s", string(proto), string(gitClient), randStringRunes(5))
-			upstreamRepoURL := bitbucketServerHTTPHost + "/" + projectKey + "/" + repoName
+			upstreamRepoURL := bitbucketServerHTTPHost + "/" + "scm" + "/" + projectKey + "/" + repoName
 
 			repo, err := c.Repositories.Create(context.TODO(), projectKey, &bitbucket.Repository{
 				Name:          repoName,
@@ -160,7 +160,7 @@ func TestBitbucketServerE2E(t *testing.T) {
 			g := NewWithT(t)
 
 			repoName := fmt.Sprintf("github-e2e-checkout-%s-%s-%s", string(proto), string(gitClient), randStringRunes(5))
-			upstreamRepoURL := bitbucketServerHTTPHost + "/" + projectKey + "/" + repoName
+			upstreamRepoURL := bitbucketServerHTTPHost + "/" + "scm" + "/" + projectKey + "/" + repoName
 
 			repo, err := c.Repositories.Create(context.TODO(), projectKey, &bitbucket.Repository{
 				Name:          repoName,
