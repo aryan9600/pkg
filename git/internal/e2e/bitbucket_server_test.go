@@ -36,11 +36,11 @@ import (
 )
 
 const (
-	projectKey  = "GOG"
-	sshPort     = "7999"
-	stashToken  = "STASH_TOKEN"
-	stashUser   = "STASH_USER"
-	stashDomain = "STASH_DOMAIN"
+	sshPort         = "7999"
+	stashToken      = "STASH_TOKEN"
+	stashUser       = "STASH_USER"
+	stashDomain     = "STASH_DOMAIN"
+	stashProjectKey = "STASH_PROJECT_KEY"
 )
 
 var (
@@ -48,6 +48,7 @@ var (
 	bitbucketServerUser     string
 	bitbucketServerHost     string
 	bitbucketServerUsername string
+	projectKey              string
 	deployKey               *bitbucket.DeployKey
 )
 
@@ -64,6 +65,10 @@ func TestBitbucketServerE2E(t *testing.T) {
 	bitbucketServerHost = os.Getenv(stashDomain)
 	if bitbucketServerHost == "" {
 		t.Fatalf("could not read bitbucket domain")
+	}
+	projectKey = os.Getenv(stashProjectKey)
+	if projectKey == "" {
+		t.Fatalf("could not read bitbucket project key")
 	}
 
 	bitbucketServerHTTPHost := "https://" + bitbucketServerHost
