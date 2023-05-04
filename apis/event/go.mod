@@ -3,8 +3,8 @@ module github.com/fluxcd/pkg/apis/event
 go 1.18
 
 require (
-	k8s.io/api v0.27.0
-	k8s.io/apimachinery v0.27.0
+	k8s.io/api v0.27.1
+	k8s.io/apimachinery v0.27.1
 )
 
 require (
